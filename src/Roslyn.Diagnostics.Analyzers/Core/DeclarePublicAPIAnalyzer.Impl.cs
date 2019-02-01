@@ -104,14 +104,30 @@ namespace Roslyn.Diagnostics.Analyzers
             /// the location of the symbol will be used.</param>
             private void OnSymbolActionCore(ISymbol symbol, Action<Diagnostic> reportDiagnostic, Location explicitLocation = null)
             {
-                if (!IsPublicAPI(symbol))
+                if (!IsPublicAPI(symbol, out var IsAnAutoProperty))
                 {
                     return;
                 }
 
                 Debug.Assert(!symbol.IsImplicitlyDeclared);
-                OnSymbolActionCore(symbol, reportDiagnostic, isImplicitlyDeclaredConstructor: false, explicitLocation: explicitLocation);
-
+                // Is this an VB auto-property?
+                if (IsAnAutoProperty && symbol is IPropertySymbol property)
+                {
+                    // Yes. We need to further process both the Setter and Getter methods.
+                    // This is to ensure compatibilty with fully implement properties.
+                    if (property.GetMethod != null)
+                    {
+                        OnSymbolActionCore(property.GetMethod, reportDiagnostic, isImplicitlyDeclaredConstructor: false, explicitLocation: explicitLocation);
+                    }
+                    if (property.SetMethod != null)
+                    {
+                        OnSymbolActionCore(property.SetMethod, reportDiagnostic, isImplicitlyDeclaredConstructor: false, explicitLocation: explicitLocation);
+                    }
+                }
+                else
+                {
+                    OnSymbolActionCore(symbol, reportDiagnostic, isImplicitlyDeclaredConstructor: false, explicitLocation: explicitLocation);
+                }
                 // Handle implicitly declared public constructors.
                 if (symbol.Kind == SymbolKind.NamedType)
                 {
@@ -135,7 +151,7 @@ namespace Roslyn.Diagnostics.Analyzers
             /// the location of the symbol will be used.</param>
             private void OnSymbolActionCore(ISymbol symbol, Action<Diagnostic> reportDiagnostic, bool isImplicitlyDeclaredConstructor, Location explicitLocation = null)
             {
-                Debug.Assert(IsPublicAPI(symbol));
+                Debug.Assert(IsPublicAPI(symbol, out var __));
 
                 string publicApiName = GetPublicApiName(symbol);
                 _visitedApiList.TryAdd(publicApiName, default);
@@ -202,7 +218,7 @@ namespace Roslyn.Diagnostics.Analyzers
                     {
                         foreach (var overload in method.GetOverloads())
                         {
-                            if (!IsPublicAPI(overload))
+                            if (!IsPublicAPI(overload, out __))
                             {
                                 continue;
                             }
@@ -343,7 +359,7 @@ namespace Roslyn.Diagnostics.Analyzers
                                     continue;
                                 }
                             }
-                            else if (!IsPublicAPI(sibling))
+                            else if (!IsPublicAPI(sibling, out var __))
                             {
                                 continue;
                             }
@@ -505,8 +521,10 @@ namespace Roslyn.Diagnostics.Analyzers
                 return list;
             }
 
-            private bool IsPublicAPI(ISymbol symbol)
+            private bool IsPublicAPI(ISymbol symbol, out bool IsAnAutoProperty)
             {
+                // By default assume that this is not an auto-implementedd property, until otherwise determined.
+                IsAnAutoProperty = false;
                 if (symbol is IMethodSymbol methodSymbol && s_ignorableMethodKinds.Contains(methodSymbol.MethodKind))
                 {
                     return false;
@@ -514,12 +532,37 @@ namespace Roslyn.Diagnostics.Analyzers
 
                 // We don't consider properties to be public APIs. Instead, property getters and setters
                 // (which are IMethodSymbols) are considered as public APIs.
-                if (symbol is IPropertySymbol)
+                if (symbol is IPropertySymbol property)
                 {
-                    return false;
+                    if (property.Language == LanguageNames.VisualBasic)
+                    {
+                        if (!IsAutoProperty(property))
+                        {
+                            return false;
+                        }
+                        IsAnAutoProperty = true;
+                    }
                 }
-
                 return IsPublicApiCore(symbol);
+            }
+
+            static private bool IsAutoProperty(IPropertySymbol property)
+            {
+                var hasAutoImplementedGetter = (property.GetMethod != null) && property.GetMethod.IsImplicitlyDeclared;
+                var hasAutoImplementedSetter = (property.SetMethod != null) && property.SetMethod.IsImplicitlyDeclared;
+                if (property.IsReadOnly && hasAutoImplementedGetter)
+                {
+                    return true;
+                }
+                else if (property.IsWriteOnly && hasAutoImplementedSetter)
+                {
+                    return true;
+                }
+                else if (hasAutoImplementedSetter && hasAutoImplementedGetter)
+                {
+                    return true;
+                }
+                return false;
             }
 
             private bool IsPublicApiCore(ISymbol symbol)

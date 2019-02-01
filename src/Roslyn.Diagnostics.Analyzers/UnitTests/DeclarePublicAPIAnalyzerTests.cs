@@ -203,7 +203,8 @@ End Class
 End Namespace
 ";
 
-            var shippedText = @"";
+            var shippedText = @"
+";
             var unshippedText = @"";
 
             VerifyBasic(source, shippedText, unshippedText,
@@ -211,8 +212,10 @@ End Namespace
                 GetBasicResultAt( 4, 14, DeclarePublicAPIAnalyzer.DeclareNewApiRule, "implicit constructor for C"),
                 GetBasicResultAt( 7,  5, DeclarePublicAPIAnalyzer.DeclareNewApiRule, "P0"),
                 GetBasicResultAt(10,  5, DeclarePublicAPIAnalyzer.DeclareNewApiRule, "P0"),
-                GetBasicResultAt(16,  5, DeclarePublicAPIAnalyzer.DeclareNewApiRule, "P1"));
+                GetBasicResultAt(14, 19, DeclarePublicAPIAnalyzer.DeclareNewApiRule, "P1"),
+                GetBasicResultAt(14, 19, DeclarePublicAPIAnalyzer.DeclareNewApiRule, "P1"));
         }
+ 
 
         [Fact, WorkItem(806, "https://github.com/dotnet/roslyn-analyzers/issues/806")]
         public void ShippedTextWithImplicitConstructor()
