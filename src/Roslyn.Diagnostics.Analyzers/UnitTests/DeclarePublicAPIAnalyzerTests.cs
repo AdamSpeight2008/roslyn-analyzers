@@ -142,7 +142,7 @@ public class C
                 GetCSharpResultAt(7, 43, DeclarePublicAPIAnalyzer.DeclareNewApiRule, "ArrowExpressionProperty.get"));
         }
 
-        [Fact(Skip = "821"), WorkItem(821, "https://github.com/dotnet/roslyn-analyzers/issues/821")]
+        [Fact, WorkItem(821, "https://github.com/dotnet/roslyn-analyzers/issues/821")]
         public void SimpleMissingMember_Basic()
         {
             var source = @"
@@ -174,16 +174,44 @@ End Class
             VerifyBasic(source, shippedText, unshippedText,
                 // Test0.vb(4,14): warning RS0016: Symbol 'C' is not part of the declared API.
                 GetBasicResultAt(4, 14, DeclarePublicAPIAnalyzer.DeclareNewApiRule, "C"),
-                // Test0.vb(5,12): warning RS0016: Symbol 'Field' is not part of the declared API.
+                GetBasicResultAt(4, 14, DeclarePublicAPIAnalyzer.DeclareNewApiRule, "implicit constructor for C"),
                 GetBasicResultAt(5, 12, DeclarePublicAPIAnalyzer.DeclareNewApiRule, "Field"),
-                // Test0.vb(8,9): warning RS0016: Symbol 'Property' is not part of the declared API.
                 GetBasicResultAt(8, 9, DeclarePublicAPIAnalyzer.DeclareNewApiRule, "Property"),
-                // Test0.vb(11,9): warning RS0016: Symbol 'Property' is not part of the declared API.
                 GetBasicResultAt(11, 9, DeclarePublicAPIAnalyzer.DeclareNewApiRule, "Property"),
-                // Test0.vb(17,16): warning RS0016: Symbol 'Method' is not part of the declared API.
                 GetBasicResultAt(17, 16, DeclarePublicAPIAnalyzer.DeclareNewApiRule, "Method"),
-                // Test0.vb(17,60): warning RS0016: Symbol 'ReadOnlyProperty' is not part of the declared API.
                 GetBasicResultAt(20, 60, DeclarePublicAPIAnalyzer.DeclareNewApiRule, "ReadOnlyProperty"));
+        }
+
+        [Fact, WorkItem(821, "https://github.com/dotnet/roslyn-analyzers/issues/821")]
+        public void SimpleMissingMember_Basic2()
+        {
+            var source = @"
+Imports System
+Namespace Global.NS
+Public Class C
+  Private m_P0 As Integer = 0
+  Public Property P0() As Integer
+    Get
+      Return m_P0
+    End Get
+    Set(value As Integer)
+      m_P0 = value
+    End Set
+  End property
+  Public Property P1() AS Integer
+End Class
+End Namespace
+";
+
+            var shippedText = @"";
+            var unshippedText = @"";
+
+            VerifyBasic(source, shippedText, unshippedText,
+                GetBasicResultAt( 4, 14, DeclarePublicAPIAnalyzer.DeclareNewApiRule, "C"),
+                GetBasicResultAt( 4, 14, DeclarePublicAPIAnalyzer.DeclareNewApiRule, "implicit constructor for C"),
+                GetBasicResultAt( 7,  5, DeclarePublicAPIAnalyzer.DeclareNewApiRule, "P0"),
+                GetBasicResultAt(10,  5, DeclarePublicAPIAnalyzer.DeclareNewApiRule, "P0"),
+                GetBasicResultAt(16,  5, DeclarePublicAPIAnalyzer.DeclareNewApiRule, "P1"));
         }
 
         [Fact, WorkItem(806, "https://github.com/dotnet/roslyn-analyzers/issues/806")]
